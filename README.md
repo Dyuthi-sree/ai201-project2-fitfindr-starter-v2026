@@ -39,6 +39,8 @@
 
 ## What This Does
 
+FitFindr helps users search secondhand clothing listings using a natural-language request containing keywords, size, and price. It selects the best matching item and suggests outfits using pieces from the user's wardrobe. It then generates a short fit-card caption containing the selected item's price and selling platform. If no listing matches, the agent stops and suggests ways to broaden the search.
+
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
 
@@ -67,7 +69,7 @@
 ### `suggest_outfit`
 
 - **What it does:** Suggests an outfit that combines the selected listing with suitable items from the user's wardrobe.
-- **Inputs:** `new_item` (dict), `wardrobe` (list of dicts)
+- **Inputs:** `new_item` (dict), `wardrobe` (dict containing an `items` list)
 - **Returns:** A string describing an outfit built around the new item and matching wardrobe pieces.
 - **When it has nothing:** If the wardrobe is empty, returns general styling advice for the new item instead of failing.
 
@@ -104,6 +106,132 @@
 ---
 
 ## Sample Run
+
+**One full query**
+
+```text
+$ python app.py ask 'vintage graphic tee under $30'
+
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: description, size, max_price
+[2] search_listings
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    branch: continue
+[3] select_item
+      in:  dict with keys: result_count
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      →    selected the highest-scoring result
+[4] suggest_outfit
+      in:  dict with keys: new_item, wardrobe
+      out: Here are two wearable, balanced outfits using your new Y2K butterfly baby tee ($18)...
+[5] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: Channel peak 2000s energy with this butterfly print Y2K baby tee...
+      →    run complete
+
+Found: Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+Outfit: Here are two wearable, balanced outfits using your new Y2K
+butterfly baby tee ($18):
+
+Outfit 1 uses baggy straight-leg jeans, chunky white sneakers, and a
+black crossbody bag. Outfit 2 uses a vintage black denim jacket,
+wide-leg khaki trousers, and black combat boots.
+
+Fit card: Channel peak 2000s energy with this butterfly print Y2K baby
+tee. Grab it on Depop for just $18! Pair it with baggy denim and chunky
+sneakers for an effortless streetwear look, or layer it under a vintage
+jacket.
+```
+
+**The three tools, tested one at a time**
+
+### `search_listings`
+
+```text
+$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+
+[
+  {
+    'id': 'lst_017',
+    'title': 'Mesh Long-Sleeve Top — Black',
+    'size': 'S/M',
+    'price': 15.0,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_002',
+    'title': 'Y2K Baby Tee — Butterfly Print',
+    'size': 'S/M',
+    'price': 18.0,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_033',
+    'title': 'Vintage Band Tee — Faded Grey',
+    'size': 'L',
+    'price': 19.0,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_006',
+    'title': 'Graphic Tee — 2003 Tour Bootleg Style',
+    'size': 'L',
+    'price': 24.0,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_015',
+    'title': 'Vintage Graphic Hoodie — Faded Black',
+    'size': 'L',
+    'price': 26.0,
+    'platform': 'depop'
+  },
+  {
+    'id': 'lst_011',
+    'title': 'Low-Rise Cargo Pants — Khaki',
+    'size': 'W29',
+    'price': 27.0,
+    'platform': 'poshmark'
+  }
+]
+```
+
+The terminal printed the complete listing dictionaries. The output above retains the identifying fields needed to show the matches and verify the price filter.
+
+### `suggest_outfit`
+
+```text
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+
+Here are two practical, everyday outfits built around your new Vintage
+Levi's 501 jeans:
+
+Outfit 1: Casual Off-Duty Minimalist
+
+White ribbed tank top (`w_003`), vintage black denim jacket (`w_006`),
+chunky white sneakers (`w_007`), and black crossbody bag (`w_010`).
+
+Outfit 2: Cozy Streetwear Edge
+
+Oversized grey crewneck sweatshirt (`w_004`), brown leather belt
+(`w_009`), black combat boots (`w_008`), and black crossbody bag
+(`w_010`).
+```
+
+### `create_fit_card`
+
+```text
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+
+Scored these vintage Levi's 501 jeans in a classic medium wash for just
+$38. Pair them with your favorite white sneakers for an effortless
+off-duty look. Find this piece live on my Depop now!
+```
+
+---
 
 <!-- Two things go here.
 
@@ -147,16 +275,15 @@ $ python -c "from tools import create_fit_card; ..."
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked AI to help implement keyword-based listing search with optional size and maximum-price filters.
+- *What came back:* It suggested using plain substring matching for sizes.
+- *What I changed:* I used token-based, case-insensitive size matching because substring matching could incorrectly treat `"S"` as matching `"US 9"` or `"L"` as matching `"XL"`.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
-
+- *What I asked for:* I asked AI to help build and trace the planning loop.
+- *What came back:* It provided the search, outfit, and fit-card stages, but the first pasted version contained formatting characters and needed clearer failure handling.
+- *What I changed:* I cleaned the Python formatting, added `trace.step()` after each stage, added an explicit empty-search branch, and caught `ModelUnavailable` so model failures return a readable session error instead of crashing.
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
