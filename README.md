@@ -97,7 +97,7 @@
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** The model interprets the natural-language query and extracts `description` (str), `size` (str), and `max_price` (float).
+**How the query is parsed:** Regular expressions and string cleaning extract `description` (str), `size` (str or None), and `max_price` (float or None) from the natural-language query.
 
 **What moves through the session:** The original query is stored first, followed by the search arguments, search results, selected item, suggested outfit, and final fit-card caption.
 

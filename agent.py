@@ -17,7 +17,7 @@ import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
 from generate import ModelUnavailable
-
+import re
 
 # ── session state ─────────────────────────────────────────────────────────────
 
@@ -108,7 +108,89 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     session = new_session(query, wardrobe)
 
     # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    stage = "search"
+    iteration_count = 0
+
+    while stage != "done":
+        iteration_count += 1
+        trace.check_iterations(iteration_count)
+
+        if stage == "search":
+            price_match = re.search(
+                r"(?:under|max(?:imum)?(?: price)?(?: of)?)\s*\$?(\d+(?:\.\d+)?)",
+                query,
+                re.IGNORECASE,
+            )
+            max_price = (
+                float(price_match.group(1))
+                if price_match
+                else None
+            )
+
+            size_match = re.search(
+                r"\bsize\s+([a-z0-9/.-]+)",
+                query,
+                re.IGNORECASE,
+            )
+            size = size_match.group(1) if size_match else None
+
+            description = re.sub(
+                r"(?:under|max(?:imum)?(?: price)?(?: of)?)\s*\$?\d+(?:\.\d+)?",
+                "",
+                query,
+                flags=re.IGNORECASE,
+            )
+            description = re.sub(
+                r"\bsize\s+[a-z0-9/.-]+",
+                "",
+                description,
+                flags=re.IGNORECASE,
+            )
+            description = re.sub(
+                r"\b(?:i am|i'm|looking for|find me|show me|want|a|an)\b",
+                " ",
+                description,
+                flags=re.IGNORECASE,
+            )
+            description = " ".join(description.split()).strip(" ,.-")
+
+            session["parsed"] = {
+                "description": description,
+                "size": size,
+                "max_price": max_price,
+            }
+
+            session["search_results"] = search_listings(
+                description=session["parsed"]["description"],
+                size=session["parsed"]["size"],
+                max_price=session["parsed"]["max_price"],
+            )
+
+            if not session["search_results"]:
+                session["error"] = (
+                    "I couldn't find a matching item. Try changing the "
+                    "description, choosing another size, or increasing the "
+                    "maximum price."
+                )
+                return session
+
+            session["selected_item"] = session["search_results"][0]
+            stage = "suggest_outfit"
+
+        elif stage == "suggest_outfit":
+            session["outfit_suggestion"] = suggest_outfit(
+                session["selected_item"],
+                session["wardrobe"],
+            )
+            stage = "create_fit_card"
+
+        elif stage == "create_fit_card":
+            session["fit_card"] = create_fit_card(
+                session["outfit_suggestion"],
+                session["selected_item"],
+            )
+            stage = "done"
+
     return session
 
 
