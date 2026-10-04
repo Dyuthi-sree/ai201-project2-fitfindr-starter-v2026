@@ -59,24 +59,24 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Searches the available clothing listings using the requested description, size, and maximum price.
+- **Inputs:** `description` (str), `size` (str), `max_price` (float)
+- **Returns:** A list of listing dictionaries, each containing item details such as `title`, `description`, `price`, `size`, and `platform`.
+- **When it has nothing:** Returns an empty list.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Suggests an outfit that combines the selected listing with suitable items from the user's wardrobe.
+- **Inputs:** `new_item` (dict), `wardrobe` (list of dicts)
+- **Returns:** A string describing an outfit built around the new item and matching wardrobe pieces.
+- **When it has nothing:** If the wardrobe is empty, returns general styling advice for the new item instead of failing.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Creates a short, social-media-style caption for the completed outfit.
+- **Inputs:** `outfit` (str), `new_item` (dict)
+- **Returns:** A string containing a concise caption describing the outfit and featured new item.
+- **When it has nothing:** Returns a helpful error message if the outfit or new item is missing.
 
 ---
 
@@ -93,13 +93,13 @@
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, store a message in the session telling the user to change the description, size, or price, and stop. Otherwise, take the first result, store it as `selected_item`, call `suggest_outfit`, and then call `create_fit_card`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** The model interprets the natural-language query and extracts `description` (str), `size` (str), and `max_price` (float).
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** The original query is stored first, followed by the search arguments, search results, selected item, suggested outfit, and final fit-card caption.
 
 ---
 
