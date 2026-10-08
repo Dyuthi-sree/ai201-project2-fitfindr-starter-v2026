@@ -9,9 +9,9 @@ import re
 
 import config
 import trace
+from tools import create_fit_card, suggest_outfit
 from generate import ModelUnavailable
-from tools import create_fit_card, search_listings, suggest_outfit
-
+from mcp_client import call_tool
 
 # ── Session state ──────────────────────────────────────────────────────────────
 
@@ -97,16 +97,19 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             trace.check_iterations(iteration)
 
             if stage == "search":
-                results = search_listings(
-                    description=session["parsed"]["description"],
-                    size=session["parsed"]["size"],
-                    max_price=session["parsed"]["max_price"],
-                )
+                results = call_tool(
+                    "search_listings",
+                    {
+                        "description": session["parsed"]["description"],
+                        "size": session["parsed"]["size"],
+                         "max_price": session["parsed"]["max_price"],
+                    },
+               )
 
                 session["search_results"] = results
 
                 trace.step(
-                    "search_listings",
+                    "search_listings (via MCP)",
                     inputs=session["parsed"],
                     returned=results,
                     note=(
