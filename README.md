@@ -238,30 +238,6 @@ off-duty look. Find this piece live on my Depop now!
      1. One FULL query and its output, pasted as text.
      2. Your three per-tool terminal tests — the command and what it printed. -->
 
-**One full query**
-
-```
-$ python app.py ask '...'
-
-```
-
-**The three tools, tested one at a time**
-
-```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
-```
-
-```
-$ python -c "from tools import suggest_outfit; ..."
-
-```
-
-```
-$ python -c "from tools import create_fit_card; ..."
-
-```
-
 ---
 
 ## How I Used AI
