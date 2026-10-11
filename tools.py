@@ -125,7 +125,11 @@ def search_listings(
 
         score = len(query_words & words(searchable_text))
 
-        if score > 0:
+# Require at least half of the meaningful query words to match.
+# This avoids returning an unrelated item based on one broad word.
+        minimum_overlap = max(1, (len(query_words) + 1) // 2)
+
+        if score >= minimum_overlap:
             scored_matches.append((score, listing))
 
     scored_matches.sort(
