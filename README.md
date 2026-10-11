@@ -314,7 +314,24 @@ $ python -c "from tools import create_fit_card; ..."
 that produced it:
 
 ```
+```text
+Query: vintage graphic tee under $30
 
+[1] parse_query
+[2] search_listings (via MCP)
+      out: 10 items
+      → branch: continue
+[3] select_item
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit
+[5] create_fit_card
+      → run complete
+
+Fit card:
+Channel ultimate 2000s vibes with this Y2K butterfly baby tee.
+Grab it on Depop for just $18.00 before it's gone! Style it with
+baggy denim or grunge boots for your next look.
+```
 ```
 
 ---
@@ -339,13 +356,18 @@ that produced it:
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools | 4 of 5 | MET (5/5) | All five tries completed search, outfit suggestion, and fit-card creation without stopping early. |
+| 2 | Impossible query stops before the second tool | 5 of 5 | MET (5/5) | All five tries returned zero search results, stopped after search, and gave an actionable message about changing price, size, or keywords. |
+| 3 | Selected item moves correctly through session state | 5 of 5 | MET (5/5) | In every try, the selected denim jacket remained the item used by the outfit and fit-card steps. |
+| 4 | Fit card is specific and short enough to post | 4 of 5 | MET (5/5) | All five cards mentioned the Y2K butterfly baby tee and each stayed below 280 characters. |
+| 5 | Search results respect the maximum price | 5 of 5 | MET (5/5) | Every try returned one result priced at $18, which was within the requested $20 maximum. |
 
 **Diagnoses**
+
+All five acceptance criteria were met during the baseline evaluation. The deterministic branch, session-state transfer, and price filtering behaved consistently, while the generated fit cards varied in wording but remained specific and concise.
+
+However, the baseline exposed a search-quality weakness not fully measured by the five criteria. The search gives equal importance to every matching word anywhere in a listing and accepts an item when only one query word matches. For example, the query `green cargo skirt under $40` returned a green polo because the word `green` matched, even though the listing was neither cargo nor a skirt. This happens in `tools.py::search_listings`, where any overlap score greater than zero is accepted.
+
 
 
 
@@ -386,40 +408,31 @@ full. -->
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
+**What I changed:** I changed `tools.py::search_listings` so that a listing must match at least half of the meaningful query words. Previously, any listing matching only one word was accepted.
 
-     `python run_eval.py --label after` -->
-
-**What I changed:**
-
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** The baseline criteria all passed, but manual testing exposed a relevance weakness. The query `green cargo skirt under $40` returned a green polo because the single word `green` matched. The new overlap requirement prevents one broad word from producing an unrelated result.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item moves correctly through session state | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card is specific and short enough to post | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Search results respect the maximum price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
-
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
-
-
+**Did it help, and how do I know:** Yes. Before the change, `green cargo skirt under $40` returned an unrelated forest-green polo based on one matching word. After the change, the same query returned an empty list and stopped before calling either model-based tool. The `vintage graphic tee under $30` scenario also returned 5 focused results instead of 10 broader results. All five original acceptance criteria remained met across all five after-run tries.
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+The search still uses exact keyword overlap rather than semantic meaning. It does not understand that terms such as “coat” and “jacket” may describe similar items unless both words appear in the listing data.
 
+The stronger overlap rule may also reject a relevant item when the user writes a long query containing several words that do not appear exactly in the listing. A future improvement would give more weight to matches in the title and category, recognize common clothing synonyms, and separately validate important product-type words such as “skirt,” “jacket,” or “shoes.”
+
+The current five criteria also do not directly measure whether the highest-ranked result is the most relevant item. I would add a future criterion requiring the selected item’s category or product type to match the requested product type in at least 4 of 5 searches.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
