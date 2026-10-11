@@ -115,7 +115,7 @@ $ python app.py ask 'vintage graphic tee under $30'
 [1] parse_query
       in:  dict with keys: query
       out: dict with keys: description, size, max_price
-[2] search_listings
+[2] search_listings (via MCP)
       in:  dict with keys: description, size, max_price
       out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
       →    branch: continue
@@ -312,8 +312,9 @@ $ python -c "from tools import create_fit_card; ..."
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
+**Real output from one try**
 
-```
+Produced by `results/run_2026-10-11_1641_before.md`, using `run_eval.py::main` and `agent.py::run_agent`:
 ```text
 Query: vintage graphic tee under $30
 
@@ -331,7 +332,6 @@ Fit card:
 Channel ultimate 2000s vibes with this Y2K butterfly baby tee.
 Grab it on Depop for just $18.00 before it's gone! Style it with
 baggy denim or grunge boots for your next look.
-```
 ```
 
 ---
@@ -373,35 +373,60 @@ However, the baseline exposed a search-quality weakness not fully measured by th
 
 ---
 
+
 ## Loop Trace
-
-<!-- One full run, printed step by step, with the MCP call visible in it.
-
-     `python app.py ask '...' --trace` once you've added the trace.step()
-     calls in Milestone 2.
-
-     Worth pasting BOTH the happy path and the empty-search path. The empty
-     one should be visibly shorter, because it stops. If your two traces are
-     the same length, your branch isn't working — and this is the fastest way
-     anyone will ever find that out. -->
 
 **Happy path**
 
-```
+```text
+$ python app.py ask 'vintage graphic tee under $30' --trace
 
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    branch: continue
+[3] select_item
+      in:  dict with keys: result_count
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      →    selected the highest-scoring result
+[4] suggest_outfit
+      in:  dict with keys: new_item, wardrobe
+      out: Outfit suggestions featuring the Y2K butterfly baby tee
+[5] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: A short caption featuring the selected item
+      →    run complete
 ```
 
 **Empty search**
 
+```text
+$ python app.py ask 'designer ballgown size XXS under $5' --trace
+
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+      →    branch: empty, stopping
+
+I couldn't find a matching listing. Try increasing your price limit,
+changing the size, or using broader keywords.
+
+0 model calls this session
 ```
 
-```
+**Additional failure-mode checks**
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+- **Empty wardrobe:** `python app.py ask 'denim jacket under $50' --empty-wardrobe --trace` completed successfully. `suggest_outfit` returned general styling advice, and the agent still created a fit card.
+- **Model unavailable:** Running with a deliberately invalid API key produced the readable message, “The model rejected your API key. Check GEMINI_API_KEY in your .env file,” instead of a stack trace.
+- **Empty search:** The impossible ballgown query stopped after `search_listings`, left the fit card empty, and made zero model calls.
 
+**On the MCP move:** I registered `search_listings` in `mcp_server.py` and replaced the direct Python call in `agent.py::run_agent` with `mcp_client.call_tool`. The returned value remained a list of listing dictionaries, so both the successful path and the empty-search branch behaved the same after the move. The trace identifies the call as `search_listings (via MCP)`. 
 
 
 ---
